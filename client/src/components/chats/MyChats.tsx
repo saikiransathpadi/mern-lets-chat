@@ -1,5 +1,6 @@
 import { AddIcon } from '@chakra-ui/icons';
 import { Box, Button, Stack, Text } from '@chakra-ui/react';
+import { get } from 'lodash';
 import { useEffect, useState } from 'react';
 import { getSenderName, trimMessage } from '../../common/utils';
 import { ChatContextState } from '../../context/ChatProvider';
@@ -12,7 +13,7 @@ export const MyChats = () => {
     const getChat = async () => {
         setLoading(true);
         await callUserChats();
-        console.log(chats)
+        console.log(chats);
         setLoading(false);
     };
     useEffect(() => {
@@ -69,10 +70,10 @@ export const MyChats = () => {
                                     width={'100%'}
                                 >
                                     <Text>{eachChat.isGroupChat ? eachChat.chatName : getSenderName(userData, eachChat.users)}</Text>
-                                    <Text>
-                                        {trimMessage(eachChat.latestMessage.content)} <b>Email: </b>
-                                        {trimMessage(eachChat.latestMessage.sender.email, 20)}
-                                    </Text>
+                                    {eachChat.latestMessage ? <Text>
+                                        {trimMessage(get(eachChat, 'latestMessage.content'))} <b>Email: </b>
+                                        {trimMessage(get(eachChat, 'latestMessage.sender.email'), 20)}
+                                    </Text> : 'Click to start chatting'}
                                 </Box>
                             );
                         })}
