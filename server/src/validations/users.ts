@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
+import { validateAndUpdateOtpLogsBLL } from '../controller/BLL/otpLogsBLL';
+import { STATUS_CODES } from '../enums';
 
 export const isValidPassword = (password: string) => {
     return Boolean(/[a-zA-Z]/.test(password) && /[0-9]/.test(password) && password.length >= 8);
@@ -33,6 +35,21 @@ export const signUpValidation = (req: Request, res: Response, next: NextFunction
         return res.status(400).json({
             error,
             message: error.message,
+        });
+    }
+};
+
+export const validateAndUpdateOtpLogsMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        await validateAndUpdateOtpLogsBLL(req.body);
+        req.body.isEmailVerified = true;
+        next();
+    } catch (error: any) {
+        console.log(error);
+        return res.status(error.statusCode || STATUS_CODES.SERVER_ERROR).json({
+            error,
+            message: error.message,
+            developer_message: error.developer_message || error.error ? error.error.message : error.message,
         });
     }
 };
