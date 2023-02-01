@@ -22,6 +22,7 @@ interface ISignUp {
     password: string;
     confirmPassword: string;
     profilePic?: string;
+    otp: string;
 }
 
 const getFormDefaults = () => ({
@@ -29,6 +30,7 @@ const getFormDefaults = () => ({
     name: '',
     password: '',
     confirmPassword: '',
+    otp: '',
 });
 
 export const SignUp = (props: any) => {
@@ -37,8 +39,11 @@ export const SignUp = (props: any) => {
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     const [formErrors, setFormErrors] = useState<{ [key: string]: any }>({});
+    const [otpData, setOtpData] = useState<any>();
+    const [resendTimer, setResendTimer] = useState(0);
 
     const handleChange = (e: any) => {
+        setFormErrors({})
         setFormData({ ...formData, [e.target.id]: e.target.value });
     };
     const isValidForm = () => {
@@ -63,12 +68,61 @@ export const SignUp = (props: any) => {
         return !Object.keys(errorFormData).filter((i) => errorFormData[i]).length;
     };
 
+    const handleEmailVerify = async () => {
+        if (!isValidForm()) return;
+
+        setLoading(true);
+        const resp = await securityService.sendOtpEmail({
+            email: formData.email,
+            source: 'signup',
+        });
+        setLoading(false);
+        if (resp.status !== 200) {
+            toast({
+                position: 'top',
+                title: get(resp, 'response.data.message', 'Something went Wrong'),
+                status: 'error',
+            });
+        } else {
+            toast({
+                position: 'top',
+                title: `Otp sent to ${formData.email}`,
+                status: 'success',
+            });
+            setOtpData(resp.data.result)
+            resendInterval();
+        }
+    };
+
+    const resendInterval = () => {
+        let i = 17;
+        const interval = setInterval(() => {
+            setResendTimer(i-2)
+            i -= 1
+            if (i===0) {
+                clearInterval(interval)
+                setResendTimer(0)
+            }
+        }, 1000)
+    }
+
+    const emailToast = () => {
+        if (!formData.otp) {
+            toast({
+                position: 'top',
+                title: "Please request otp to verify Email",
+                status: 'warning',
+            });
+        }
+    }
+
     const handleSignUp = async () => {
         if (!isValidForm()) return;
+        if (!formData.otp) return emailToast();
         try {
-            setLoading(true)
-            const resp: any = await securityService.userSignUp(formData);
-            setLoading(false)
+            setLoading(true);
+            const resp: any = await securityService.userSignUp({...formData, otpId: otpData && otpData.otpId});
+            setLoading(false);
             if (resp.status === 200) {
                 toast({
                     position: 'top',
@@ -79,7 +133,7 @@ export const SignUp = (props: any) => {
             } else {
                 toast({
                     position: 'top',
-                    title: get(resp, 'response.data.message', "Something went Wrong"),
+                    title: get(resp, 'response.data.message', 'Something went Wrong'),
                     status: 'error',
                 });
             }
@@ -95,7 +149,15 @@ export const SignUp = (props: any) => {
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(formErrors.email)}>
                 <FormLabel ml={'3px'}>Email</FormLabel>
-                <Input type='email' placeholder='Enter Email...' id='email' onChange={handleChange} value={formData.email} required />
+                <InputGroup>
+                    <Input type='email' placeholder='Enter Email...' id='email' onChange={handleChange} value={formData.email} required />
+                    <InputRightElement w={'5.5rem'}>
+                        <Button height='1.75rem' size='sm' bg='none' mr={2} onClick={handleEmailVerify} isDisabled={Boolean(resendTimer)}>
+                            {otpData ? 'Resend Otp' : 'Send otp'}
+                        </Button>
+                    </InputRightElement>
+                </InputGroup>
+                {resendTimer ? <FormHelperText marginRight={13} textAlign='right'>{`Resend otp in ${resendTimer}`}</FormHelperText> : ''}
                 <FormHelperText>{formErrors.email}</FormHelperText>
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(formErrors.password)}>
@@ -142,7 +204,12 @@ export const SignUp = (props: any) => {
                 handleChange={(profilePic: string) => setFormData({ ...formData, profilePic })}
                 handleLoading={(flag: boolean) => setLoading(flag)}
             />
-
+            {otpData && (
+                <FormControl isRequired isInvalid={Boolean(formErrors.name)}>
+                    <FormLabel ml={'3px'}>Enter Otp received on your email</FormLabel>
+                    <Input placeholder='Enter Otp...' id='otp' onChange={handleChange} value={formData.otp} required />
+                </FormControl>
+            )}
             <Button colorScheme='blue' style={{ marginTop: 15 }} w='100%' onClick={handleSignUp} isLoading={loading}>
                 Sign Up
             </Button>

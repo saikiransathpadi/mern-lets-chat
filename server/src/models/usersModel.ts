@@ -21,6 +21,10 @@ const userSchema = new Schema(
             required: true,
             default: 'https://icon-library.com/images/default-profile-icon/default-profile-icon-24.jpg',
         },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
     },
     { timestamps: true }
 );
@@ -31,6 +35,19 @@ userSchema.pre('save', function (next) {
     if (!user.isModified('password')) return next();
     user.password = hashPassword(user.password);
     next();
+});
+
+userSchema.pre('updateOne', async function (next) {
+    const user: any = this;
+
+    try {
+        // only hash the password if it has been modified (or is new)
+        if (!user._update.password) return next();
+        user._update.password = hashPassword(user._update.password);
+        next();
+    } catch (error: any) {
+        return next(error);
+    }
 });
 
 export const User = model('User', userSchema);
